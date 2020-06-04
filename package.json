@@ -1,0 +1,29 @@
+{
+  "name": "aframe-osm-3d",
+  "version": "0.1.0",
+  "description": "A-Frame components for working with tile-based Terrarium elevation and OpenStreetMap vector data.",
+  "main": "index.js",
+  "dependencies": {
+    "jsfreemaplib": "^0.2.2",
+    "pngjs": "^5.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "build": "browserify index.js > aframe-osm-3d.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickw1/aframe-osm-3d.git"
+  },
+  "keywords": [
+    "aframe",
+    "openstreetmap",
+    "terrarium"
+  ],
+  "author": "Nick Whitelegg",
+  "license": "LGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/nickw1/aframe-osm-3d/issues"
+  },
+  "homepage": "https://github.com/nickw1/aframe-osm-3d#readme"
+}

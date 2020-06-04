@@ -1,8 +1,6 @@
-const jsfreemaplib = require('jsfreemaplib');
-const dist = require('jsfreemaplib').dist;
+const GoogleProjection = require('jsfreemaplib').GoogleProjection;
 
-AFRAME.registerComponent('osm3d', {
-
+module.exports = AFRAME.registerComponent('osm3d', {
     schema: {
         url: {
             type: 'string'
@@ -10,11 +8,49 @@ AFRAME.registerComponent('osm3d', {
     },
 
     init: function() {
-        this.tilesLoaded = [];
-        this.el.addEventListener('terrarium-dem-loaded', e=> {
-            this.newObjectIds = [];
-            this._loadAndApplyDem(e.detail.demData);
+        this.el.addEventListener('terrarium-dem-loaded', async(e)=> {
+            const data = await this.loadAndApplyDem(this.data.url, e.detail.demData);
+            this.el.emit('osm-data-loaded', {
+                objectIds: data.newObjectIds,
+                pois: data.pois
+            });
         });
+    },
+
+    loadAndApplyDem: async function(url, demData) {
+        this.newObjectIds = [];
+        const pois = [];
+        for(let i=0; i<demData.length; i++) {
+            const osmDataJson = await this.system.loadData(url, demData[i].tile);
+            if(osmDataJson != null) {
+                const features = await this._applyDem(osmDataJson, demData[i]);
+                pois.push(...features.pois);
+            }
+        }
+
+        return {
+            newObjectIds: this.newObjectIds,
+            pois: pois
+        }; 
+    },
+
+    _applyDem: async function(osmDataJson, dem) {
+        const features = await this.system.loadOsm(osmDataJson,`${dem.tile.z}/${dem.tile.x}/${dem.tile.y}`, dem.dem);
+        features.ways.forEach ( f=> {
+            const mesh = new THREE.Mesh(f.geometry, new THREE.MeshBasicMaterial ( { color: f.properties.color } ));
+            this.el.setObject3D(f.properties.id, mesh);
+            this.newObjectIds.push(f.properties.id);
+        });
+        return features;
+    }
+});
+
+////////////////////////////////////////////////////////////////////////////////
+
+AFRAME.registerSystem('osm3d', {
+
+    init: function() {
+        this.tilesLoaded = [];
         this.drawProps = { 'footway' : {  color:'#00ff00' },
             'path' : {  color: '#00ff00'},
             'steps' : { color: '#00ff00' },
@@ -30,41 +66,10 @@ AFRAME.registerComponent('osm3d', {
             'trunk' : { },
             'motorway' : { }
         };
-        this.sphMerc = new jsfreemaplib.GoogleProjection();
+        this.sphMerc = new GoogleProjection();
     },
 
-    _loadAndApplyDem: async function(demData) {
-        const pois = [];
-        for(let i=0; i<demData.length; i++) {
-            const osmDataJson = await this._loadData(demData[i].tile);
-            if(osmDataJson != null) {
-                const features = await this._applyDem(osmDataJson, demData[i]);
-                pois.push(...features.pois);
-            }
-        }
-        
-        this.el.emit('osm-data-loaded', {
-            objectIds: this.newObjectIds,
-            pois: pois
-        });
-    },
-
-    _loadData: async function(tile) {
-        const tileIndex = `${tile.z}/${tile.x}/${tile.y}`;
-        if(this.tilesLoaded.indexOf(tileIndex) == -1) {
-            const realUrl = this.data.url.replace('{x}', tile.x)
-                                .replace('{y}', tile.y)
-                                .replace('{z}', tile.z);
-            console.log(realUrl);
-            const response = await fetch(realUrl);
-            const osmDataJson = await response.json();
-            this.tilesLoaded.push(tileIndex);
-            return osmDataJson;
-        }
-        return null;
-    },
-
-    _loadOsm: async function(osmDataJson, tileid, dem=null) {
+    loadOsm: async function(osmDataJson, tileid, dem=null) {
         const features = { ways: [], pois: [] };
         osmDataJson.features.forEach  ( (f,i)=> {
             const line = [];
@@ -112,6 +117,21 @@ AFRAME.registerComponent('osm3d', {
         }); 
         return features;
     },
+
+    loadData: async function(url, tile) {
+        const tileIndex = `${tile.z}/${tile.x}/${tile.y}`;
+        if(this.tilesLoaded.indexOf(tileIndex) == -1) {
+            const realUrl = url.replace('{x}', tile.x)
+                                .replace('{y}', tile.y)
+                                .replace('{z}', tile.z);
+            const response = await fetch(realUrl);
+            const osmDataJson = await response.json();
+            this.tilesLoaded.push(tileIndex);
+            return osmDataJson;
+        }
+        return null;
+    },
+
 
     _makeWayGeom(vertices, width=1) {
         const faces = [];
@@ -170,16 +190,7 @@ AFRAME.registerComponent('osm3d', {
         geom.setAttribute('position', new THREE.BufferAttribute(bufVertices,3));
         geom.computeBoundingBox();
         return geom;
-    },
-
-    _applyDem: async function(osmDataJson, dem) {
-        const features = await this._loadOsm(osmDataJson,`${dem.tile.z}/${dem.tile.x}/${dem.tile.y}`, dem.dem);
-        features.ways.forEach ( f=> {
-            const mesh = new THREE.Mesh(f.geometry, new THREE.MeshBasicMaterial ( { color: f.properties.color } ));
-            this.el.setObject3D(f.properties.id, mesh);
-            this.newObjectIds.push(f.properties.id);
-        });
-        return features;
     }
+
 });
 

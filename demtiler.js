@@ -32,3 +32,5 @@ class DemTiler extends Tiler {
             }); 
     }
 }
+
+module.exports = DemTiler;

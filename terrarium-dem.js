@@ -1,7 +1,8 @@
 const Tile = require('jsfreemaplib').Tile;
 const DEM = require('jsfreemaplib').DEM;
+const DemTiler = require('./demtiler');
 
-AFRAME.registerComponent ('terrarium-dem', {
+module.exports = AFRAME.registerComponent ('terrarium-dem', {
 
     schema: {
         url: {
@@ -17,22 +18,71 @@ AFRAME.registerComponent ('terrarium-dem', {
         lon: {
             type: 'number',
             default: 91
+        },
+        color: {
+            type: 'color',
+            default: '#00c000'
+        },
+        opacity: {
+            type: 'number',
+            default: 1.0
+        },
+        render: {
+            type: 'boolean',
+            default: false
         }
     },
 
     init: function() {
-        this.dems = {};
-        this.tilesLoaded = [];
-        this.tiler = new DemTiler();
-           this.tiler.url = this.data.url;
-        this.tiler.setZoom(this.data.zoom);
+        this.system.initTiler(this.data.url, this.data.zoom);
+        this.system.initRenderProps({ 
+            render: this.data.render, 
+            color: this.data.color, 
+            opacity: this.data.opacity
+        });
     },
 
     update: function() {
-        this._setPosition();
+        this._setPosition(this.data.lon, this.data.lat);
     },
 
-    _updateLonLat: async function(lon, lat) {
+     _setPosition: async function() {
+         if(this.data.lon >= -180 && this.data.lon <= 180 && this.data.lat >= -90 && this.data.lat <= 90) {
+             const demData = await this.system.updateLonLat(this.data.lon, this.data.lat);
+             this.el.emit('terrarium-dem-loaded', { 
+                 demData: demData,
+                 elevation: this.system.getElevation(this.data.lon, this.data.lat, this.data.zoom),
+                 lat: this.data.lat,
+                 lon: this.data.lon
+            });
+        }
+    }
+});
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+AFRAME.registerSystem('terrarium-dem', {
+    init: function() {
+        this.dems = {};
+        this.tilesLoaded = [];
+        this.tiler = new DemTiler();
+        this.render = false;
+    },
+
+    initTiler: function(url, zoom) {
+        this.tiler.url = url;
+        this.tiler.setZoom(zoom);
+    },    
+
+    initRenderProps: function(renderProps) {
+        this.render = renderProps.render;
+        this.color = renderProps.color;
+        this.opacity = renderProps.opacity;
+    },    
+
+    updateLonLat: async function(lon, lat) {
          const sphMerc = this.tiler.lonLatToSphMerc(lon,lat);
          return await this._updateSphMerc(sphMerc);
      },
@@ -55,6 +105,15 @@ AFRAME.registerComponent ('terrarium-dem', {
              const geom = this._createDemGeometry(data);
              geom.geom.computeFaceNormals();
              geom.geom.computeVertexNormals();
+             if(this.render === true) {
+                const mesh = new THREE.Mesh(geom.geom, new THREE.MeshLambertMaterial({
+                    color: this.color,
+                    opacity: this.opacity
+                }));
+                const demEl = document.createElement("a-entity");
+                demEl.setObject3D('mesh', mesh);
+                this.el.appendChild(demEl);
+             }
              const dem = new DEM(geom.geom.getAttribute("position").array, 
                    geom.realBottomLeft,
                    geom.geom.parameters.widthSegments+1,
@@ -92,7 +151,7 @@ AFRAME.registerComponent ('terrarium-dem', {
          return {geom: geom, realBottomLeft: realBottomLeft };    
      },
 
-     _getElevation: function(lon, lat, z) {
+     getElevation: function(lon, lat, z) {
          const sphMercPos = this.tiler.lonLatToSphMerc(lon, lat, z);
          return this._getElevationFromSphMerc(sphMercPos, z);
      },
@@ -105,17 +164,5 @@ AFRAME.registerComponent ('terrarium-dem', {
                  (scaled[0], scaled[1]);
          }
          return -1;
-     },
-
-     _setPosition: async function() {
-         if(this.data.lon >= -180 && this.data.lon <= 180 && this.data.lat >= -90 && this.data.lat <= 90) {
-             const demData = await this._updateLonLat(this.data.lon, this.data.lat);
-             this.el.emit('terrarium-dem-loaded', { 
-                 demData: demData,
-                 elevation: this._getElevation(this.data.lon, this.data.lat, this.data.zoom),
-                 lat: this.data.lat,
-                 lon: this.data.lon
-            });
-        }
-    }
+     }
 });
