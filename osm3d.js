@@ -78,7 +78,7 @@ AFRAME.registerSystem('osm3d', {
             
                     const h = dem? dem.getHeight(coord[0], coord[1]) : 0;
                     if (h >= 0) {
-                        line.push([coord[0], h-20, -coord[1]]);
+                        line.push([coord[0], h, -coord[1]]);
                     }
                });
                     
