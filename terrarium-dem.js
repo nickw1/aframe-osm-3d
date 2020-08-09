@@ -1,6 +1,6 @@
 const Tile = require('jsfreemaplib').Tile;
 const DEM = require('jsfreemaplib').DEM;
-const DemTiler = require('./demtiler');
+const DemTiler = require('jsfreemaplib/demtiler');
 
 module.exports = AFRAME.registerComponent ('terrarium-dem', {
 
@@ -65,7 +65,6 @@ module.exports = AFRAME.registerComponent ('terrarium-dem', {
 
 AFRAME.registerSystem('terrarium-dem', {
     init: function() {
-        this.dems = {};
         this.tilesLoaded = [];
         this.tiler = new DemTiler();
         this.render = false;
@@ -103,10 +102,10 @@ AFRAME.registerSystem('terrarium-dem', {
          let demData = null;    
          if(data !== null) {
              const geom = this._createDemGeometry(data);
-             geom.geom.computeFaceNormals();
-             geom.geom.computeVertexNormals();
+             geom.computeFaceNormals();
+             geom.computeVertexNormals();
              if(this.render === true) {
-                const mesh = new THREE.Mesh(geom.geom, new THREE.MeshLambertMaterial({
+                const mesh = new THREE.Mesh(geom, new THREE.MeshLambertMaterial({
                     color: this.color,
                     opacity: this.opacity
                 }));
@@ -114,41 +113,34 @@ AFRAME.registerSystem('terrarium-dem', {
                 demEl.setObject3D('mesh', mesh);
                 this.el.appendChild(demEl);
              }
-             const dem = new DEM(geom.geom.getAttribute("position").array, 
-                   geom.realBottomLeft,
-                   geom.geom.parameters.widthSegments+1,
-                   geom.geom.parameters.heightSegments+1,
-                   geom.geom.parameters.width / geom.geom.parameters.widthSegments,
-                   geom.geom.parameters.height / geom.geom.parameters.heightSegments);
-             this.dems[`${data.tile.z}/${data.tile.x}/${data.tile.y}`] = dem;
+             const dem = data.data;
              demData = { dem: dem, tile: data.tile };
          }
          return demData;
     },
 
     _createDemGeometry: function(data) {
-         const demData = data.data;
-         const tile = data.tile; 
-         const topRight = tile.getTopRight();
-         const bottomLeft = tile.getBottomLeft();
+         const dem = data.data;
+		 console.log(data);
+         const topRight = data.tile.getTopRight();
+         const bottomLeft = dem.bottomLeft;
          const centre = [(topRight[0] + bottomLeft[0]) / 2, 
                (topRight[1] + bottomLeft[1]) /2];
-         const xSpacing = (topRight[0] - bottomLeft[0]) / (demData.w-1);
-         const ySpacing = (topRight[1] - bottomLeft[1]) / (demData.h-1);
-         const realBottomLeft = [bottomLeft[0], bottomLeft[1]] ;
-         const geom = new THREE.PlaneBufferGeometry(topRight[0] - bottomLeft[0], topRight[1] - bottomLeft[1], demData.w - 1,  demData.h - 1);
+         const xSpacing = data.xSpacing;
+         const ySpacing = data.ySpacing;
+         const geom = new THREE.PlaneBufferGeometry(topRight[0] - bottomLeft[0], topRight[1] - bottomLeft[1], dem.ptWidth - 1,  dem.ptHeight - 1);
          const array = geom.getAttribute("position").array;
          let i;
-         for (let row=0; row<demData.h; row++) {
-             for(let col=0; col<demData.w; col++) {
-                i = row*demData.w + col;
+         for (let row=0; row<dem.ptHeight; row++) {
+             for(let col=0; col<dem.ptWidth; col++) {
+                i = row*dem.ptWidth + col;
                  array[i*3+2] = -(centre[1] + array[i*3+1]); 
-                 array[i*3+1] = demData.elevs[i];
+                 array[i*3+1] = dem.elevs[i];
                  array[i*3] += centre[0];
              }        
          }
 
-         return {geom: geom, realBottomLeft: realBottomLeft };    
+         return geom; 
      },
 
      getElevation: function(lon, lat, z) {
@@ -158,10 +150,9 @@ AFRAME.registerSystem('terrarium-dem', {
 
      _getElevationFromSphMerc: function(sphMercPos, z) {    
          const tile = this.tiler.getTile(sphMercPos, z);
-         if(this.dems[`${tile.z}/${tile.x}/${tile.y}`]) {
+         if(this.tiler.indexedTiles[`${tile.z}/${tile.x}/${tile.y}`]) {
              const scaled = [ sphMercPos[0], sphMercPos[1]  ];
-             return this.dems[`${tile.z}/${tile.x}/${tile.y}`].getHeight
-                 (scaled[0], scaled[1]);
+             return this.tiler.indexedTiles[`${tile.z}/${tile.x}/${tile.y}`].getHeight (scaled[0], scaled[1]);
          }
          return -1;
      }

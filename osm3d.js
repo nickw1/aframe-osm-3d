@@ -70,6 +70,8 @@ AFRAME.registerSystem('osm3d', {
     },
 
     loadOsm: async function(osmDataJson, tileid, dem=null) {
+		console.log('osmDataJson');
+		console.log(osmDataJson);
         const features = { ways: [], pois: [] };
         osmDataJson.features.forEach  ( (f,i)=> {
             const line = [];
