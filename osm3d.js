@@ -35,7 +35,7 @@ module.exports = AFRAME.registerComponent('osm3d', {
         return {
             newObjectIds: this.newObjectIds,
             pois: pois,
-            ways: rawWays
+            rawWays: rawWays
         }; 
     },
 
