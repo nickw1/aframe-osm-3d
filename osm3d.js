@@ -12,6 +12,7 @@ module.exports = AFRAME.registerComponent('osm3d', {
             const data = await this.loadAndApplyDem(this.data.url, e.detail.demData);
             this.el.emit('osm-data-loaded', {
                 objectIds: data.newObjectIds,
+                rawWays: data.rawWays,
                 pois: data.pois
             });
         });
@@ -20,22 +21,27 @@ module.exports = AFRAME.registerComponent('osm3d', {
     loadAndApplyDem: async function(url, demData) {
         this.newObjectIds = [];
         const pois = [];
+        const rawWays = [];
+
         for(let i=0; i<demData.length; i++) {
             const osmDataJson = await this.system.loadData(url, demData[i].tile);
             if(osmDataJson != null) {
                 const features = await this._applyDem(osmDataJson, demData[i]);
                 pois.push(...features.pois);
+                rawWays.push(...features.rawWays);
             }
         }
 
         return {
             newObjectIds: this.newObjectIds,
-            pois: pois
+            pois: pois,
+            ways: rawWays
         }; 
     },
 
     _applyDem: async function(osmDataJson, dem) {
         const features = await this.system.loadOsm(osmDataJson,`${dem.tile.z}/${dem.tile.x}/${dem.tile.y}`, dem.dem);
+        let id;
         features.ways.forEach ( f=> {
             const mesh = new THREE.Mesh(f.geometry, new THREE.MeshBasicMaterial ( { color: f.properties.color } ));
             this.el.setObject3D(f.properties.id, mesh);
@@ -70,9 +76,7 @@ AFRAME.registerSystem('osm3d', {
     },
 
     loadOsm: async function(osmDataJson, tileid, dem=null) {
-		console.log('osmDataJson');
-		console.log(osmDataJson);
-        const features = { ways: [], pois: [] };
+        const features = { ways: [], pois: [], rawWays: [] };
         osmDataJson.features.forEach  ( (f,i)=> {
             const line = [];
             if(f.geometry.type=='LineString' && f.geometry.coordinates.length >= 2) {
@@ -101,6 +105,7 @@ AFRAME.registerSystem('osm3d', {
                            color: color
                        }
                    }); 
+                   features.rawWays.push(f);
                 }
             } else if(f.geometry.type == 'Point') {
                 const h = dem ? dem.getHeight(f.geometry.coordinates[0], f.geometry.coordinates[1]) : 0;
