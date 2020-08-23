@@ -83,6 +83,7 @@ AFRAME.registerSystem('osm3d', {
                 f.geometry.coordinates.forEach (coord=> {
             
                     const h = dem? dem.getHeight(coord[0], coord[1]) : 0;
+                    coord[2] = h; // raw geojson will contain elevations
                     if (h >= 0) {
                         line.push([coord[0], h, -coord[1]]);
                     }
