@@ -12,7 +12,6 @@ module.exports = AFRAME.registerComponent('osm3d', {
             const data = await this.loadAndApplyDem(this.data.url, e.detail.demData);
             this.el.emit('osm-data-loaded', {
                 objectIds: data.newObjectIds,
-                rawWays: data.rawWays,
                 pois: data.pois
             });
         });
@@ -21,21 +20,25 @@ module.exports = AFRAME.registerComponent('osm3d', {
     loadAndApplyDem: async function(url, demData) {
         this.newObjectIds = [];
         const pois = [];
-        const rawWays = [];
+        let key;
 
         for(let i=0; i<demData.length; i++) {
             const osmDataJson = await this.system.loadData(url, demData[i].tile);
             if(osmDataJson != null) {
+                this.system.z = demData[i].tile.z; // assume zoom never changes
+                key = `${demData[i].tile.z}/${demData[i].tile.x}/${demData[i].tile.y}`;
                 const features = await this._applyDem(osmDataJson, demData[i]);
                 pois.push(...features.pois);
-                rawWays.push(...features.rawWays);
+                this.system.rawData[key] = {
+                    ways : features.rawWays,
+                    pois : features.pois
+                };
             }
         }
 
         return {
             newObjectIds: this.newObjectIds,
-            pois: pois,
-            rawWays: rawWays
+            pois: pois
         }; 
     },
 
@@ -48,7 +51,40 @@ module.exports = AFRAME.registerComponent('osm3d', {
             this.newObjectIds.push(f.properties.id);
         });
         return features;
-    }
+    },
+
+    getCurrentRawData: function(lon, lat) {
+        const tile = this.system.sphMerc.getTileFromLonLat(lon, lat, this.system.z);
+        if(this.system.curTile === null || tile.x != this.system.curTile.x || tile.y != this.system.curTile.y) {
+
+            const data = {
+                ways: [],
+                pois: []    
+            };
+
+            let key;
+            for(let x = tile.x - 1; x <= tile.x + 1; x++) {
+                for(let y = tile.y - 1; y <= tile.y + 1; y++) {
+                    key = `${this.system.z}/${x}/${y}`;
+                    if(this.system.rawData[key]) {
+                        data.ways.push(...this.system.rawData[key].ways);
+                        data.pois.push(...this.system.rawData[key].pois);
+                    }
+                }
+            }
+
+            if (data.ways.length > 0 || data.pois.length > 0) {
+            
+                this.system.curTile = {
+                    x: tile.x,
+                    y: tile.y
+                };
+
+                return data;
+            }
+        }
+        return null;
+    },
 });
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -73,6 +109,11 @@ AFRAME.registerSystem('osm3d', {
             'motorway' : { }
         };
         this.sphMerc = new GoogleProjection();
+        this.rawData = {
+            ways: { },
+            pois: { }
+        };
+        this.curTile = null;
     },
 
     loadOsm: async function(osmDataJson, tileid, dem=null) {
@@ -181,9 +222,9 @@ AFRAME.registerSystem('osm3d', {
         realVertices.push(vertices[k][0] - dxperp);
         realVertices.push(vertices[k][1]);
         realVertices.push(vertices[k][2] - dzperp);
-        realVertices.push( vertices[k][0] + dxperp);
+        realVertices.push(vertices[k][0] + dxperp);
         realVertices.push(vertices[k][1]);
-        realVertices.push( vertices[k][2] + dzperp);
+        realVertices.push(vertices[k][2] + dzperp);
 
     
         let indices = [];

@@ -121,7 +121,6 @@ AFRAME.registerSystem('terrarium-dem', {
 
     _createDemGeometry: function(data) {
          const dem = data.data;
-		 console.log(data);
          const topRight = data.tile.getTopRight();
          const bottomLeft = dem.bottomLeft;
          const centre = [(topRight[0] + bottomLeft[0]) / 2, 
