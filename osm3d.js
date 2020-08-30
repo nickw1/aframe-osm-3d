@@ -10,6 +10,11 @@ module.exports = AFRAME.registerComponent('osm3d', {
     init: function() {
         this.el.addEventListener('terrarium-dem-loaded', async(e)=> {
             const data = await this.loadAndApplyDem(this.data.url, e.detail.demData);
+            this.system.tile = {
+                x: e.detail.tile.x,
+                y: e.detail.tile.y
+            };
+
             this.el.emit('osm-data-loaded', {
                 objectIds: data.newObjectIds,
                 pois: data.pois
@@ -54,34 +59,31 @@ module.exports = AFRAME.registerComponent('osm3d', {
     },
 
     getCurrentRawData: function(lon, lat) {
-        const tile = this.system.sphMerc.getTileFromLonLat(lon, lat, this.system.z);
-        if(this.system.curTile === null || tile.x != this.system.curTile.x || tile.y != this.system.curTile.y) {
+        if(this.system.tile) {
 
             const data = {
                 ways: [],
                 pois: []    
             };
 
-            let key;
-            for(let x = tile.x - 1; x <= tile.x + 1; x++) {
-                for(let y = tile.y - 1; y <= tile.y + 1; y++) {
+            let key, loadedTiles = []; 
+            for(let x = this.system.tile.x - 1; x <= this.system.tile.x + 1; x++) {
+                for(let y = this.system.tile.y - 1; y <= this.system.tile.y + 1; y++) {
                     key = `${this.system.z}/${x}/${y}`;
                     if(this.system.rawData[key]) {
-                        data.ways.push(...this.system.rawData[key].ways);
-                        data.pois.push(...this.system.rawData[key].pois);
+                        loadedTiles.push(this.system.rawData[key]);
                     }
                 }
             }
 
-            if (data.ways.length > 0 || data.pois.length > 0) {
-            
-                this.system.curTile = {
-                    x: tile.x,
-                    y: tile.y
-                };
 
-                return data;
-            }
+            loadedTiles.forEach (tile => {
+                console.log('Adding data for tile');
+                data.ways.push(...tile.ways);
+                data.pois.push(...tile.pois);
+            });
+    
+            return data;
         }
         return null;
     },
@@ -113,7 +115,6 @@ AFRAME.registerSystem('osm3d', {
             ways: { },
             pois: { }
         };
-        this.curTile = null;
     },
 
     loadOsm: async function(osmDataJson, tileid, dem=null) {

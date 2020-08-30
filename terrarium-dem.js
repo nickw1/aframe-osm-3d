@@ -1,6 +1,7 @@
 const Tile = require('jsfreemaplib').Tile;
 const DEM = require('jsfreemaplib').DEM;
 const DemTiler = require('jsfreemaplib/demtiler');
+const GoogleProjection = require('jsfreemaplib').GoogleProjection;
 
 module.exports = AFRAME.registerComponent ('terrarium-dem', {
 
@@ -43,17 +44,31 @@ module.exports = AFRAME.registerComponent ('terrarium-dem', {
     },
 
     update: function() {
-        this._setPosition(this.data.lon, this.data.lat);
+        this._setPosition();
     },
 
      _setPosition: async function() {
+
          if(this.data.lon >= -180 && this.data.lon <= 180 && this.data.lat >= -90 && this.data.lat <= 90) {
-             const demData = await this.system.updateLonLat(this.data.lon, this.data.lat);
-             this.el.emit('terrarium-dem-loaded', { 
-                 demData: demData,
-                 elevation: this.system.getElevation(this.data.lon, this.data.lat, this.data.zoom),
-                 lat: this.data.lat,
-                 lon: this.data.lon
+            const tile = this.system.tiler.sphMerc.getTileFromLonLat(this.data.lon, this.data.lat, this.data.zoom);
+             if(tile.x != this.system.curTile.x || tile.y != this.system.curTile.y) {
+                 const demData = await this.system.updateLonLat(this.data.lon, this.data.lat);
+                 this.el.emit('terrarium-dem-loaded', { 
+                     demData: demData,
+                     lat: this.data.lat,
+                     lon: this.data.lon,
+                     tile: tile
+                 }); 
+
+                 this.system.curTile = {
+                     x: tile.x,
+                     y: tile.y
+                 };
+            }
+
+             const sphMercPos = this.system.tiler.lonLatToSphMerc(this.data.lon, this.data.lat, this.data.zoom);
+             this.el.emit('elevation-available', {
+                elevation: this.system._getElevationFromSphMerc(sphMercPos, this.data.zoom)
             });
         }
     }
@@ -68,6 +83,7 @@ AFRAME.registerSystem('terrarium-dem', {
         this.tilesLoaded = [];
         this.tiler = new DemTiler();
         this.render = false;
+        this.curTile = { x: -1, y: -1 };
     },
 
     initTiler: function(url, zoom) {
@@ -140,11 +156,6 @@ AFRAME.registerSystem('terrarium-dem', {
          }
 
          return geom; 
-     },
-
-     getElevation: function(lon, lat, z) {
-         const sphMercPos = this.tiler.lonLatToSphMerc(lon, lat, z);
-         return this._getElevationFromSphMerc(sphMercPos, z);
      },
 
      _getElevationFromSphMerc: function(sphMercPos, z) {    
