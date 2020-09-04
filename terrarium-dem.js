@@ -52,6 +52,8 @@ module.exports = AFRAME.registerComponent ('terrarium-dem', {
          if(this.data.lon >= -180 && this.data.lon <= 180 && this.data.lat >= -90 && this.data.lat <= 90) {
             const tile = this.system.tiler.sphMerc.getTileFromLonLat(this.data.lon, this.data.lat, this.data.zoom);
              if(tile.x != this.system.curTile.x || tile.y != this.system.curTile.y) {
+                 this.el.emit('terrarium-start-update');
+
                  const demData = await this.system.updateLonLat(this.data.lon, this.data.lat);
                  this.el.emit('terrarium-dem-loaded', { 
                      demData: demData,
