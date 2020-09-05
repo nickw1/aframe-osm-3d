@@ -5,6 +5,9 @@ module.exports = AFRAME.registerComponent('osm3d', {
         url: {
             type: 'string'
         },
+        emitRawData: {
+            type: 'boolean'
+        }
     },
 
     init: function() {
@@ -17,7 +20,8 @@ module.exports = AFRAME.registerComponent('osm3d', {
 
             this.el.emit('osm-data-loaded', {
                 objectIds: data.newObjectIds,
-                pois: data.pois
+                pois: data.pois,
+                rawData: this.data.emitRawData ? this.getCurrentRawData() : null
             });
         });
     },
