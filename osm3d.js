@@ -19,7 +19,7 @@ module.exports = AFRAME.registerComponent('osm3d', {
             };
 
             this.el.emit('osm-data-loaded', {
-                objectIds: data.newObjectIds,
+                renderedWays: data.renderedWays,
                 pois: data.pois,
                 rawData: this.data.emitRawData ? this.getCurrentRawData() : null
             });
@@ -27,8 +27,7 @@ module.exports = AFRAME.registerComponent('osm3d', {
     },
 
     loadAndApplyDem: async function(url, demData) {
-        this.newObjectIds = [];
-        const pois = [];
+        const pois = [], renderedWays = [];
         let key;
 
         for(let i=0; i<demData.length; i++) {
@@ -38,6 +37,7 @@ module.exports = AFRAME.registerComponent('osm3d', {
                 key = `${demData[i].tile.z}/${demData[i].tile.x}/${demData[i].tile.y}`;
                 const features = await this._applyDem(osmDataJson, demData[i]);
                 pois.push(...features.pois);
+                renderedWays.push(...features.renderedWays);
                 this.system.rawData[key] = {
                     ways : features.rawWays,
                     pois : features.pois
@@ -46,20 +46,24 @@ module.exports = AFRAME.registerComponent('osm3d', {
         }
 
         return {
-            newObjectIds: this.newObjectIds,
+            renderedWays: renderedWays,
             pois: pois
         }; 
     },
 
     _applyDem: async function(osmDataJson, dem) {
-        const features = await this.system.loadOsm(osmDataJson,`${dem.tile.z}/${dem.tile.x}/${dem.tile.y}`, dem.dem);
+        const features = await this.system.loadOsm(osmDataJson,`${dem.tile.z}/${dem.tile.x}/${dem.tile.y}`, dem.dem), renderedWays = [];
         let id;
         features.ways.forEach ( f=> {
             const mesh = new THREE.Mesh(f.geometry, new THREE.MeshBasicMaterial ( { color: f.properties.color } ));
             this.el.setObject3D(f.properties.id, mesh);
-            this.newObjectIds.push(f.properties.id);
+            renderedWays.push(mesh);
         });
-        return features;
+        return {
+            renderedWays: renderedWays,
+            rawWays: features.rawWays,
+            pois: features.pois
+        };
     },
 
     getCurrentRawData: function(lon, lat) {
