@@ -131,11 +131,11 @@ AFRAME.registerSystem('osm3d', {
             const line = [];
             if(f.geometry.type=='LineString' && f.geometry.coordinates.length >= 2) {
                 f.geometry.coordinates.forEach (coord=> {
-            
-                    const h = dem? dem.getHeight(coord[0], coord[1]) : 0;
+                    const projCoord = this.sphMerc.project(coord[0], coord[1]);
+                    const h = dem ? dem.getHeight(projCoord[0], projCoord[1]) : 0;
                     coord[2] = h; // raw geojson will contain elevations
                     if (h >= 0) {
-                        line.push([coord[0], h, -coord[1]]);
+                        line.push([projCoord[0], h, -projCoord[1]]);
                     }
                });
                     
@@ -159,9 +159,9 @@ AFRAME.registerSystem('osm3d', {
                    features.rawWays.push(f);
                 }
             } else if(f.geometry.type == 'Point') {
-                const h = dem ? dem.getHeight(f.geometry.coordinates[0], f.geometry.coordinates[1]) : 0;
+                const projCoord = this.sphMerc.project(f.geometry.coordinates[0], f.geometry.coordinates[1]);
+                const h = dem ? dem.getHeight(projCoord[0], projCoord[1]) : 0;
                 if(h >= 0) {
-                    const lonLat = this.sphMerc.unproject(f.geometry.coordinates); 
                     features.pois.push({
                         geometry: [
                             f.geometry.coordinates[0],
