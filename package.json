@@ -1,10 +1,10 @@
 {
   "name": "aframe-osm-3d",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "A-Frame components for working with tile-based Terrarium elevation and OpenStreetMap vector data.",
   "main": "index.js",
   "dependencies": {
-    "jsfreemaplib": "^0.3.1"
+    "jsfreemaplib": "^0.4.0"
   },
   "devDependencies": {},
   "scripts": {
