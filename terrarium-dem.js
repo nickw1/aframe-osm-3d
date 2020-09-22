@@ -125,7 +125,8 @@ AFRAME.registerSystem('terrarium-dem', {
              if(this.render === true) {
                 const mesh = new THREE.Mesh(geom, new THREE.MeshLambertMaterial({
                     color: this.color,
-                    opacity: this.opacity
+                    opacity: this.opacity,
+                    transparent: this.opacity < 1.0
                 }));
                 const demEl = document.createElement("a-entity");
                 demEl.setObject3D('mesh', mesh);
