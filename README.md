@@ -71,6 +71,10 @@ Note that `aframe-osm-3d` depends on [jsfreemaplib](https://gitlab.com/nickw1/js
 - `aframe-osm-3d` version 0.2.x - 0.4.x require `jsfreemaplib` version 0.3.x.
 - `aframe-osm-3d` version 0.5.x requires `jsfreemaplib` version 0.4.x.
 
+CHANGES version 0.5.2
+---------------------
+
+`renderRoads` property (`true` by default) can be set to `false` if you do not want roads to be rendered automatically.
 
 CHANGES version 0.5.0
 ---------------------

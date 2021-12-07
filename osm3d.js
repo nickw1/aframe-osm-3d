@@ -7,6 +7,10 @@ module.exports = AFRAME.registerComponent('osm3d', {
         },
         emitRawData: {
             type: 'boolean'
+        },
+        renderRoads: {
+            type: 'boolean',
+            default: true
         }
     },
 
@@ -56,9 +60,11 @@ module.exports = AFRAME.registerComponent('osm3d', {
         let id;
         features.ways.forEach ( f=> {
             const mesh = new THREE.Mesh(f.geometry, new THREE.MeshBasicMaterial ( { color: f.properties.color } ));
-            this.el.setObject3D(f.properties.id, mesh);
+            if(this.data.renderRoads == true) {
+                this.el.setObject3D(f.properties.id, mesh);
+            }
             renderedWays.push(mesh);
-        });
+        } );
         return {
             renderedWays: renderedWays,
             rawWays: features.rawWays,
