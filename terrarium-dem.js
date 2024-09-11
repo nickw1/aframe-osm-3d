@@ -120,7 +120,6 @@ AFRAME.registerSystem('terrarium-dem', {
          let demData = null;    
          if(data !== null) {
              const geom = this._createDemGeometry(data);
-             geom.computeFaceNormals();
              geom.computeVertexNormals();
              if(this.render === true) {
                 const mesh = new THREE.Mesh(geom, new THREE.MeshLambertMaterial({
